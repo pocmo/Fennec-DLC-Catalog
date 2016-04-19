@@ -87,6 +87,36 @@ def compress_content(content):
     return out.getvalue()
 
 
+def create_collection(session, url, force):
+    collection = url.split('/')[-1]
+    bucket = url.split('/')[-3]
+    bucket_endpoint = '/'.join(url.split('/')[:-2])
+
+    resp = session.request('get', bucket_endpoint)
+    data = {"permissions": {"read": ["system.Everyone"]}}
+
+    if resp.status_code == 200:
+        existing = resp.json()
+        # adding the right permission
+        read_perm = existing['permissions'].get('read', [])
+        if not "system.Everyone" in read_perm:
+            if force:
+                session.request('patch', bucket_endpoint, json=data)
+            else:
+                print('Changing bucket permissions')
+    else:
+        # creating the bucket
+        if force:
+            session.request('put', bucket_endpoint, json=data)
+        else:
+            print('creating bucket')
+
+    if force:
+        session.request('put', url)
+    else:
+        print('adding the collection')
+
+
 def upload_files(session, url, files, force):
     permissions = {}  # XXX not set yet
 
@@ -149,6 +179,9 @@ def main():
     url = args.url
     if url.endswith('/'):
         url = url[:-1]
+
+    create_collection(session, url, args.force)
+
     if not url.endswith('records'):
         url += '/records'
 
