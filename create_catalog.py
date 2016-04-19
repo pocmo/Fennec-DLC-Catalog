@@ -87,11 +87,43 @@ def compress_content(content):
     return out.getvalue()
 
 
+def create_collection(session, url, force):
+    collection = url.split('/')[-1]
+    bucket = url.split('/')[-3]
+    bucket_endpoint = '/'.join(url.split('/')[:-2])
+
+    resp = session.request('get', bucket_endpoint)
+    data = {"permissions": {"read": ["system.Everyone"]}}
+
+    if resp.status_code == 200:
+        existing = resp.json()
+        # adding the right permission
+        read_perm = existing['permissions'].get('read', [])
+        if not "system.Everyone" in read_perm:
+            if force:
+                session.request('patch', bucket_endpoint, json=data)
+            else:
+                print('Changing bucket permissions')
+    else:
+        # creating the bucket
+        if force:
+            session.request('put', bucket_endpoint, json=data)
+        else:
+            print('creating bucket')
+
+    if force:
+        session.request('put', url)
+    else:
+        print('adding the collection')
+
+
 def upload_files(session, url, files, force):
     permissions = {}  # XXX not set yet
 
     for filepath, record in files:
         mimetype, _ = mimetypes.guess_type(filepath)
+        if mimetype is None:
+            raise TypeError("Could not recognize the mimetype for %s" % filepath)
         filename = os.path.basename(filepath)
         filecontent = open(filepath, "rb").read()
 
@@ -131,7 +163,8 @@ def main():
     parser = argparse.ArgumentParser(description='Upload files to Kinto')
     parser.add_argument('--url', dest='url', action='store', help='Collection URL', required=True)
     parser.add_argument('--auth', dest='auth', action='store', help='Credentials', required=True)
-    parser.add_argument('--repository', dest='repository', action='store', help='Path to repository checkout (mozilla-central)', required=True)
+    parser.add_argument('--repository', dest='repository', action='store', help='Path to repository checkout (mozilla-central)',
+                        default='.')
     parser.add_argument('--force', dest='force', action='store_true', help='Actually perform actions on the server. Without this no request will be sent')
 
     args = parser.parse_args()
@@ -146,6 +179,9 @@ def main():
     url = args.url
     if url.endswith('/'):
         url = url[:-1]
+
+    create_collection(session, url, args.force)
+
     if not url.endswith('records'):
         url += '/records'
 
