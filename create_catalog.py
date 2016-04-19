@@ -92,6 +92,8 @@ def upload_files(session, url, files, force):
 
     for filepath, record in files:
         mimetype, _ = mimetypes.guess_type(filepath)
+        if mimetype is None:
+            raise TypeError("Could not recognize the mimetype for %s" % filepath)
         filename = os.path.basename(filepath)
         filecontent = open(filepath, "rb").read()
 
@@ -131,7 +133,8 @@ def main():
     parser = argparse.ArgumentParser(description='Upload files to Kinto')
     parser.add_argument('--url', dest='url', action='store', help='Collection URL', required=True)
     parser.add_argument('--auth', dest='auth', action='store', help='Credentials', required=True)
-    parser.add_argument('--repository', dest='repository', action='store', help='Path to repository checkout (mozilla-central)', required=True)
+    parser.add_argument('--repository', dest='repository', action='store', help='Path to repository checkout (mozilla-central)',
+                        default='.')
     parser.add_argument('--force', dest='force', action='store_true', help='Actually perform actions on the server. Without this no request will be sent')
 
     args = parser.parse_args()
