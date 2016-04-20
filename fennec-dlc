@@ -1,0 +1,62 @@
+#!/bin/sh
+
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+# The beginning of this script is both valid shell and valid python,
+# such that the script starts with the shell and is reexecuted with
+# the right python.
+'''which' python2.7 > /dev/null && exec python2.7 "$0" "$@" || exec python "$0" "$@"
+'''
+
+import argparse
+
+from lib import command_create
+from lib import command_update
+from lib import command_delete
+from lib import command_restrict
+from lib import command_read
+from lib import command_sync
+
+NAME = 'Fennec DLC tool'
+VERSION = '1.0'
+URL = 'https://github.com/pocmo/Fennec-DLC-Catalog'
+
+def main():
+	parser = argparse.ArgumentParser(description='Manage a catalog of downloadable content for Fennec in Kinto', epilog=URL)
+	parser.add_argument('--auth', dest='auth', action='store', help='credentials for HTTP auth.')
+	parser.add_argument('--url', dest='url', action='store', help='URL pointing to the Kinto collection', required=True)
+	parser.add_argument('--dry-run', dest='dryrun', action='store_true', help='do everything except actually send the updates.')
+	parser.add_argument('--version', action='version', version='%s %s' % (NAME, VERSION))
+
+	subparsers = parser.add_subparsers(title='commands', description='Action to perform on the online catalog', metavar='COMMAND')
+
+	parser_create = subparsers.add_parser('create', help='upload files to the catalog')
+	parser_create.add_argument('--type', dest='type', action='store', help='type of the content (default: asset-archive)', default='asset-archive')
+	parser_create.add_argument('--kind', dest='kind', action='store', help='kind of the content (default: guess from MIME type)')
+	parser_create.add_argument('--compress', dest='compress', action='store_true', help='compress the file before uploading (gzip). Files of type "asset-archive" will always be compressed.')
+	parser_create.add_argument('files', metavar='FILE', nargs='+', action='store', help="a file to upload and add to the catalog")
+	parser_create.set_defaults(func=command_create.perform)
+
+	parser_update = subparsers.add_parser('update', help='update files in the catalog')
+	parser_update.set_defaults(func=command_update.perform)
+
+	parser_delete = subparsers.add_parser('delete', help='delete files from the catalog')
+	parser_delete.set_defaults(func=command_delete.perform)
+
+	parser_restrict = subparsers.add_parser('restrict', help='restrict download of files to specific app versions')
+	parser_restrict.set_defaults(func=command_restrict.perform)
+
+	parser_read = subparsers.add_parser('read', help='read and print the catalog in a human readable form')
+	parser_read.set_defaults(func=command_read.perform)
+
+	parser_sync = subparsers.add_parser('sync', help='synchronize online catalog from a local manifest file')
+	parser_sync.set_defaults(func=command_sync.perform)
+
+	args = parser.parse_args()
+	args.func(args)
+
+
+if __name__ == '__main__':
+    main()
