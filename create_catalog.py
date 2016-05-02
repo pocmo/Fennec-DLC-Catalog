@@ -27,6 +27,9 @@ FILES = [
     'mobile/android/fonts/ClearSans-Thin.ttf',
 ]
 
+# On some system, the .ttf extension has no associated mimetype.
+mimetypes.add_type("application/x-font-ttf", ".ttf")
+
 try:
     import requests
 except ImportError:
